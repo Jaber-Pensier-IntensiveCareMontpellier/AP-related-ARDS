@@ -1,0 +1,72 @@
+##### Load packages ####
+library(survival)
+library(readxl)
+library(gtsummary)
+library(ggplot2)
+
+##### Load and manage data ####
+survie <- read_excel("ardspancreas.xlsx")
+survie$PaFi.c <- cut(survie$PFJ0, breaks = c(0,100,200,1000))
+survfocal <- survie[survie$NFocal==0,] ### used for tables and subgroup analyses
+survnonfocal <- survie[survie$NFocal==1,]
+
+##### Perform survival analysis on prone position in ARDS subphenotypes ####
+
+surv <- Surv(time = survie$delaiARDS, event = survie$d90mortality)
+fit <- survfit(surv ~1)
+
+KMprone <- survfit(Surv(time = survie$delaiARDS, event = survie$d90mortality) ~ survie$NFocal + survie$prone, data = survie)
+
+graff <- ggsurvplot(
+  KMprone,
+  size = 1,
+  break.time.by = 15,
+  xlim = c(0, 90),
+  fun = "event",
+  conf.int = FALSE,
+  risk.table = TRUE,
+  risk.table.y.text.col = FALSE,
+  risk.table.col = "strata",
+  palette = c("coral1", "red", "lightblue", "blue"),
+  font.x = 16,
+  font.y = 16,
+  font.tickslab = 12,
+  risk.table.pos = "out",
+  legend = c(0.4, 0.8),
+  legend.title = "ARDS subphenotypes",
+  legend.labs = c(
+    "Focal - No prone",
+    "Focal - Prone",
+    "Non-Focal - No prone",
+    "Non-Focal - Prone"
+  )
+
+graff$plot <- graff$plot +
+  theme_light() +
+  scale_y_continuous(
+    name = "Mortality",
+    breaks = seq(0, 1, 0.2),
+  ) 
+
+graff$table <- graff$table +
+  theme(
+    axis.title.y = element_blank(),
+    plot.title = element_text(size = 12, face = "bold"),
+    axis.text.y = element_text(face = "plain")
+  )
+
+graff
+
+#### Perform multivariate Cox Model of prone position in Focal subphenotype ####
+survf <- Surv(time = survfoc$delaiARDS, event = survfoc$d90mortality)
+fitf <- survfit(survf ~1)
+
+## Univariate Cox Model ##
+coxf = coxph(survf ~prone, data=survfoc)
+tbl_regression(coxf, exp = TRUE, pvalue_fun = purrr::partial(style_sigfig, digits = 3))
+
+## Multivariate Cox Model ##
+coxfoc = coxph(survf9 ~prone + Age + SOFAJ0 + relevel(PaFi.c, ref = "(200,1e+03]"), data=survfoc)
+tbl_regression(coxfoc, exp = TRUE, pvalue_fun = purrr::partial(style_sigfig, digits = 3))
+
+
