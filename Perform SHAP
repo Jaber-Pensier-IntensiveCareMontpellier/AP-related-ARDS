@@ -1,0 +1,23 @@
+##### After "Parameter SHAP" and "XGBoost"
+
+shap_values=predict(Tuned_Model, d_training, predcontrib = TRUE, approxcontrib = F) ##### where Tuned_Model is the XGBoost model (cf XGBoost)
+plot.shap.summary
+
+## Calculate shap values
+shap_result = shap.score.rank(xgb_model = Tuned_Model, 
+                                   X_train =d_training,
+                                   shap_approx = F
+)
+# `shap_approx` comes from `approxcontrib` from xgboost documentation. 
+# Faster but less accurate if true. Read more: help(xgboost)
+
+## Plot var importance based on SHAP
+var_importance(shap_result)
+
+## Prepare data for top N variables
+shap_long = shap.prep(shap = shap_result,
+                           X_train = training
+)
+
+## Plot shap overall metrics
+plot.shap.summary(data_long = shap_long)
