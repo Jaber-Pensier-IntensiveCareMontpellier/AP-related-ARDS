@@ -1,5 +1,15 @@
 ###### XGboost : example to perform an XGBoost model #########
 
+library(readxl)
+library(gtsummary)
+library(ggplot2)
+library(RColorBrewer)
+library(splines)
+library(caret) 
+library(ggfortify) 
+library(xgboost) 
+library(ggforce) 
+
 ## Preparing Data for Matrix
 survie$d90mortality <- as.factor(survie$d90mortality)
 y <- survie$d90mortality
