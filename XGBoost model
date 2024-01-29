@@ -1,0 +1,40 @@
+###### XGboost : example to perform an XGBoost model #########
+
+## Preparing Data for Matrix
+survie$d90mortality <- as.factor(survie$d90mortality)
+y <- survie$d90mortality
+x <- survie[,c(1:2,4,35,57,75,78,81,112:114,127,119,125,148)] ### all variables useful for the model
+x_numeric <- x %>% select_if(is.numeric)
+x_cat <- x %>% select_if(is.factor)
+
+
+attach(survie)
+## Using one-hot-coding and preparing matrix (derivation data)
+Diffus_mat <- model.matrix(~Diffus-1, x) ### For all factor variables
+Sexe_mat <- model.matrix(~Sexe-1, x)
+Amine_mat <- model.matrix(~amine-1, x)
+x_numeric <- cbind(x_numeric, Diffus_mat, Amine_mat, Sexe_mat)
+x_matrix <- data.matrix(x_numeric)
+TrainingSamples <- round(length(y))
+training <- x_matrix
+training_label <- as.numeric(y)
+d_training <- xgb.DMatrix(data = training, label = d90mortality)
+
+## Performing a grid search for Hyperparameter Tuning
+### Tuned Parameters were "nrounds", "eta", and "max_depth"
+grid_label <- factor(d90mortality, labels = c("no", "yes"))
+boost_train_cont = trainControl(method = "cv", number = 10,   verboseIter = TRUE, returnData = FALSE, returnResamp = "all",   classProbs = TRUE, summaryFunction = twoClassSummary, allowParallel = TRUE)
+boost_grid <- expand.grid(nrounds = c(10, 100, 200, 400, 800, 1000, 2000),eta = c(0.2, 0.1, 0.05, 0.02, 0.01, 0.001),max_depth = c(2, 3, 4, 6, 8, 10), gamma = 0, min_child_weight = 1, subsample = 1, colsample_bytree = 1)
+model_train <- train(x=training, y=grid_label, trControl = boost_train_cont, tuneGrid = boost_grid, method = "xgbTree")
+ggplot(model_train$results, aes(x = as.factor(eta), y = max_depth, size = ROC, color = ROC)) + geom_point() + theme_bw() + scale_size_continuous(guide = "none")
+options(max.print = 100000)
+model_train$results
+
+## Setting the model parameters using the optimized Hyperparameters
+params <- list(booster = "gbtree", objective = "binary:logistic", eta=0.2, gamma=0, max_depth=3, min_child_weight=1,    subsample=1, colsample_bytree=1)
+Tuned_Model <- xgboost(data = d_training, nrounds = 100, params=params)
+
+## Extracting variable importance from the model
+importance_matrix <- xgb.importance(names(x_matrix), model = Tuned_Model)
+importance_matrix
+xgb.plot.importance(importance_matrix, rel_to_first = TRUE,left_margin = 5, cex = NULL)
